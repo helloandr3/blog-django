@@ -1,0 +1,106 @@
+from rest_framework.decorators import api_view, permission_classes
+
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+from rest_framework import status
+from .models import Post, Comment
+from django.contrib.auth.models import User
+from .serializers import PostSerializer, CommentSerializer
+
+from drf_spectacular.utils import extend_schema, extend_schema_view
+
+from django.urls import reverse
+
+# Create your views here.
+
+##### Posts ##### 
+
+@extend_schema(description='Retrieve all posts', responses=PostSerializer(many=True))
+@permission_classes([IsAuthenticated])
+@api_view(['GET'])
+def posts_list(request):
+    posts = Post.objects.order_by('-created_at')
+    serializer = PostSerializer(posts, many=True)
+    return Response(serializer.data)
+
+
+@extend_schema(description='Retrieve the post with the specified ID', responses=PostSerializer(many=True))
+@permission_classes([IsAuthenticated])
+@api_view(['GET'])
+def get_post_by_id(request, id):
+    try:
+        post = Post.objects.get(id=id)
+        serialize = PostSerializer(post)
+        return Response(serialize.data)
+    
+    except Post.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@extend_schema(description='Retrieve all post with the specified author', responses=PostSerializer(many=True))
+@permission_classes([IsAuthenticated])
+@api_view(['GET'])
+def get_post_by_author(request, author):
+    try:
+        user = User.objects.get(username=author)
+        post = Post.objects.filter(author=user)
+
+        if(post.count() == 0):
+            return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = PostSerializer(post, many=True)
+        return Response(serializer.data)
+    
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+
+@extend_schema(description='Create a new post', request=PostSerializer, responses=PostSerializer)
+@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+def create_post(request):
+    serializer = PostSerializer(data=request.data)
+
+    if (serializer.is_valid()):
+        post = serializer.save(author=request.user)
+        headers= {'Location':  reverse('get_post_by_id', args=[post.pk])}
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+##### Comments ##### 
+
+@extend_schema(description='Retrieve all comments from the post with the specified ID', responses=PostSerializer(many=True))
+@permission_classes([IsAuthenticated])
+@api_view(['GET'])
+def get_comment_by_post_id(request, post_id):
+    try:
+        comments = Comment.objects.filter(post_id=post_id)
+
+        if(comments.count() == 0):
+            return Response({'error': 'Comments not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serialize =CommentSerializer(comments, many=True)
+        return Response(serialize.data)
+    
+    except Comment.DoesNotExist:
+        return Response({'error': 'There is no comment for this post'}, status=status.HTTP_404_NOT_FOUND)
+
+@extend_schema(description='Retrieve all comments', responses=PostSerializer(many=True))
+@permission_classes([IsAuthenticated])
+@api_view(['GET'])
+def comments_list(request):
+    comments = Comment.objects.order_by('-created_at')
+    serializer = CommentSerializer(comments, many=True)
+    return Response(serializer.data)
+
+@extend_schema(description='Create a new comment', request=CommentSerializer, responses=CommentSerializer)
+@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+def create_comment(request):
+    serializer = CommentSerializer(data=request.data)
+
+    if (serializer.is_valid()):
+        serializer.save(author=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

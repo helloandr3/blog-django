@@ -60,13 +60,67 @@ def get_post_by_author(request, author):
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
 def create_post(request):
+    if not request.user.is_authenticated:
+        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+
     serializer = PostSerializer(data=request.data)
 
     if (serializer.is_valid()):
+        print('request.user', request.user)
         post = serializer.save(author=request.user)
         headers= {'Location':  reverse('get_post_by_id', args=[post.pk])}
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(description='Uptade an existing post', request=PostSerializer, responses=PostSerializer)
+@permission_classes([IsAuthenticated])
+@api_view(['PUT'])
+def update_post(request, post_id):
+    if not request.user.is_authenticated:
+        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    try:
+        post = Post.objects.get(id=post_id)
+
+    except post.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = PostSerializer(post, data=request.data, partial=False)
+    
+    if (serializer.is_valid()):
+        serializer.save()
+        headers= {'Location':  reverse('get_post_by_id', args=[post.pk])}
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@extend_schema(description='Delete the post with the specified ID', request=PostSerializer, responses=PostSerializer)
+@permission_classes([IsAuthenticated])
+@api_view(['DELETE'])
+def delete_post(request, post_id):
+    if not request.user.is_authenticated:
+        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    post = Post.objects.get(id=post_id)
+
+    if post.author is not request.user:
+        
+        if not request.user.is_superuser:
+            return Response({'error': 'Access denied. Only the author or staff can delete a post'}, status=status.HTTP_401_UNAUTHORIZED)
+        if not request.user.is_staff:
+            return Response({'error': 'Access denied. Only the author or staff can delete a post'}, status=status.HTTP_401_UNAUTHORIZED)
+   
+    
+    try:
+        post.delete()
+        return Response({'message': f'The post "{post.title}" was successfully deleted'}, status=status.HTTP_200_OK)
+    except post.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
 
 ##### Comments ##### 
 
@@ -98,9 +152,35 @@ def comments_list(request):
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
 def create_comment(request):
+    if not request.user.is_authenticated:
+        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+    
     serializer = CommentSerializer(data=request.data)
-
     if (serializer.is_valid()):
         serializer.save(author=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(description='Delete the comment with the specified ID', request=PostSerializer, responses=PostSerializer)
+@permission_classes([IsAuthenticated])
+@api_view(['DELETE'])
+def delete_comment(request, comment_id):
+    if not request.user.is_authenticated:
+        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    comment = Comment.objects.get(id=comment_id)
+
+    if comment.author is not request.user:
+        
+        if not request.user.is_superuser:
+            return Response({'error': 'Access denied. Only the author or staff can delete a comment'}, status=status.HTTP_401_UNAUTHORIZED)
+        if not request.user.is_staff:
+            return Response({'error': 'Access denied. Only the author or staff can delete a comment'}, status=status.HTTP_401_UNAUTHORIZED)
+   
+    
+    try:
+        comment.delete()
+        return Response({'message': f'The comment "{comment.content}" was successfully deleted'}, status=status.HTTP_200_OK)
+    except comment.DoesNotExist:
+        return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)

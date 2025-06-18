@@ -73,7 +73,7 @@ def create_post(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(description='Uptade an existing post', request=PostSerializer, responses=PostSerializer)
+@extend_schema(description='Update an existing post', request=PostSerializer, responses=PostSerializer)
 @permission_classes([IsAuthenticated])
 @api_view(['PUT'])
 def update_post(request, post_id):

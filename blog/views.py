@@ -1,16 +1,13 @@
 from rest_framework.decorators import api_view, permission_classes
-
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
 from rest_framework import status
 from .models import Post, Comment
 from django.contrib.auth.models import User
 from .serializers import PostSerializer, CommentSerializer, UserSerializer
-
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiRequest
-
 from django.urls import reverse
+
 
 ##### Users ##### 
 @extend_schema(
@@ -43,8 +40,8 @@ def register_user(request):
 ##### Posts ##### 
 
 @extend_schema(description='Retrieve all posts', responses=PostSerializer(many=True))
-@permission_classes([IsAuthenticated])
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def posts_list(request):
     posts = Post.objects.order_by('-created_at')
     serializer = PostSerializer(posts, many=True)
@@ -52,8 +49,8 @@ def posts_list(request):
 
 
 @extend_schema(description='Retrieve the post with the specified ID', responses=PostSerializer(many=True))
-@permission_classes([IsAuthenticated])
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_post_by_id(request, id):
     try:
         post = Post.objects.get(id=id)
@@ -65,8 +62,8 @@ def get_post_by_id(request, id):
 
 
 @extend_schema(description='Retrieve all post with the specified author', responses=PostSerializer(many=True))
-@permission_classes([IsAuthenticated])
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_post_by_author(request, author):
     try:
         user = User.objects.get(username=author)
@@ -83,11 +80,9 @@ def get_post_by_author(request, author):
     
 
 @extend_schema(description='Create a new post', request=PostSerializer, responses=PostSerializer)
-@permission_classes([IsAuthenticated])
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_post(request):
-    if not request.user.is_authenticated:
-        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
 
     serializer = PostSerializer(data=request.data)
 
@@ -100,11 +95,10 @@ def create_post(request):
 
 
 @extend_schema(description='Update an existing post', request=PostSerializer, responses=PostSerializer)
-@permission_classes([IsAuthenticated])
 @api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
 def update_post(request, post_id):
-    if not request.user.is_authenticated:
-        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+   
     try:
         post = Post.objects.get(id=post_id)
 
@@ -123,11 +117,10 @@ def update_post(request, post_id):
 
 
 @extend_schema(description='Delete the post with the specified ID', request=PostSerializer, responses=PostSerializer)
-@permission_classes([IsAuthenticated])
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_post(request, post_id):
-    if not request.user.is_authenticated:
-        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+   
     try:
         post = Post.objects.get(id=post_id)
     except Post.DoesNotExist:
@@ -147,8 +140,8 @@ def delete_post(request, post_id):
 ##### Comments ##### 
 
 @extend_schema(description='Retrieve all comments from the post with the specified ID', responses=PostSerializer(many=True))
-@permission_classes([IsAuthenticated])
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_comment_by_post_id(request, post_id):
     try:
         comments = Comment.objects.filter(post_id=post_id)
@@ -164,8 +157,8 @@ def get_comment_by_post_id(request, post_id):
 
 
 @extend_schema(description='Retrieve all comments', responses=PostSerializer(many=True))
-@permission_classes([IsAuthenticated])
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def comments_list(request):
     comments = Comment.objects.order_by('-created_at')
     serializer = CommentSerializer(comments, many=True)
@@ -176,9 +169,7 @@ def comments_list(request):
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
 def create_comment(request, post_id):
-    if not request.user.is_authenticated:
-        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
-    
+
     try:
         post = Post.objects.get(id=post_id)
 
@@ -193,12 +184,10 @@ def create_comment(request, post_id):
 
 
 @extend_schema(description='Delete the comment with the specified ID', request=PostSerializer, responses=PostSerializer)
-@permission_classes([IsAuthenticated])
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_comment(request, comment_id):
-    if not request.user.is_authenticated:
-        return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
-    
+
     try:
         comment = Comment.objects.get(id=comment_id)
 

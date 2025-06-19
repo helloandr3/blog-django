@@ -66,7 +66,6 @@ SPECTACULAR_SETTINGS = {
     'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
     'REDOC_DIST': 'SIDECAR',
 
-
     'TITLE': 'Blog API',
     'DESCRIPTION': 'API for managing blog posts and comments',
     'VERSION': '1.0.0',

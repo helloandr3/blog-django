@@ -8,11 +8,9 @@ from .models import Post, Comment
 from django.contrib.auth.models import User
 from .serializers import PostSerializer, CommentSerializer
 
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema
 
 from django.urls import reverse
-
-# Create your views here.
 
 ##### Posts ##### 
 
@@ -66,27 +64,26 @@ def create_post(request):
     serializer = PostSerializer(data=request.data)
 
     if (serializer.is_valid()):
-        print('request.user', request.user)
         post = serializer.save(author=request.user)
         headers= {'Location':  reverse('get_post_by_id', args=[post.pk])}
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema(description='Update an existing post', request=PostSerializer, responses=PostSerializer)
 @permission_classes([IsAuthenticated])
-@api_view(['PUT'])
+@api_view(['PATCH'])
 def update_post(request, post_id):
     if not request.user.is_authenticated:
         return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
-    
     try:
         post = Post.objects.get(id=post_id)
 
     except post.DoesNotExist:
         return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = PostSerializer(post, data=request.data, partial=False)
+    serializer = PostSerializer(post, data=request.data, partial=True)
     
     if (serializer.is_valid()):
         serializer.save()
@@ -103,8 +100,10 @@ def update_post(request, post_id):
 def delete_post(request, post_id):
     if not request.user.is_authenticated:
         return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
-    
-    post = Post.objects.get(id=post_id)
+    try:
+        post = Post.objects.get(id=post_id)
+    except Post.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if post.author is not request.user:
         
@@ -112,14 +111,9 @@ def delete_post(request, post_id):
             return Response({'error': 'Access denied. Only the author or staff can delete a post'}, status=status.HTTP_401_UNAUTHORIZED)
         if not request.user.is_staff:
             return Response({'error': 'Access denied. Only the author or staff can delete a post'}, status=status.HTTP_401_UNAUTHORIZED)
-   
-    
-    try:
-        post.delete()
-        return Response({'message': f'The post "{post.title}" was successfully deleted'}, status=status.HTTP_200_OK)
-    except post.DoesNotExist:
-        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    post.delete()
+    return Response({'message': f'The post "{post.title}" was successfully deleted'}, status=status.HTTP_200_OK)
 
 
 ##### Comments ##### 
@@ -140,6 +134,7 @@ def get_comment_by_post_id(request, post_id):
     except Comment.DoesNotExist:
         return Response({'error': 'There is no comment for this post'}, status=status.HTTP_404_NOT_FOUND)
 
+
 @extend_schema(description='Retrieve all comments', responses=PostSerializer(many=True))
 @permission_classes([IsAuthenticated])
 @api_view(['GET'])
@@ -148,16 +143,23 @@ def comments_list(request):
     serializer = CommentSerializer(comments, many=True)
     return Response(serializer.data)
 
+
 @extend_schema(description='Create a new comment', request=CommentSerializer, responses=CommentSerializer)
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
-def create_comment(request):
+def create_comment(request, post_id):
     if not request.user.is_authenticated:
         return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
     
+    try:
+        post = Post.objects.get(id=post_id)
+
+    except Post.DoesNotExist:
+        return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
+    
     serializer = CommentSerializer(data=request.data)
     if (serializer.is_valid()):
-        serializer.save(author=request.user)
+        serializer.save(author=request.user, post_id=post)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -169,7 +171,11 @@ def delete_comment(request, comment_id):
     if not request.user.is_authenticated:
         return Response({'error': 'Access denied. User is not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
     
-    comment = Comment.objects.get(id=comment_id)
+    try:
+        comment = Comment.objects.get(id=comment_id)
+
+    except Comment.DoesNotExist:
+        return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if comment.author is not request.user:
         
@@ -178,9 +184,6 @@ def delete_comment(request, comment_id):
         if not request.user.is_staff:
             return Response({'error': 'Access denied. Only the author or staff can delete a comment'}, status=status.HTTP_401_UNAUTHORIZED)
    
-    
-    try:
-        comment.delete()
-        return Response({'message': f'The comment "{comment.content}" was successfully deleted'}, status=status.HTTP_200_OK)
-    except comment.DoesNotExist:
-        return Response({'error': 'Comment not found'}, status=status.HTTP_404_NOT_FOUND)
+    comment.delete()
+    return Response({'message': f'The comment "{comment.content}" was successfully deleted'}, status=status.HTTP_200_OK)
+   
